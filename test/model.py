@@ -53,17 +53,17 @@ class cnn_model(object):
 			self.history.history['acc'].extend(history.history['acc'])
 			self.history.history['val_acc'].extend(history.history['val_acc'])
 
-		self.info.add_data(X_train[:128],y_train[:128])
+		self.info.add_data(X_train,y_train)
 
 	'''
 	 - This function is used for 'kal' algorithm.
 	 - The model will calculate the gradient on D1[batch0], and never access to D1 again
 	'''
 	def transfer(self,X_train,y_train,num=2):
+		self.info.add_data(X_train,y_train)
 		opcallback = op_pre_callback(info=self.info,use_pre=False)
 		#self.model.compile(optimizer='sgd',loss='categorical_crossentropy',metrics=['accuracy'])
 		history = self.model.fit(X_train,y_train,epochs=self.epoch,batch_size=128,verbose=True,callbacks=[opcallback],validation_data=(self.X_test,self.y_test))
-		self.info.add_data(X_train[:128],y_train[:128])
 		self.history.history['acc'].extend(history.history['acc'])
 		self.history.history['val_acc'].extend(history.history['val_acc'])
 
@@ -198,14 +198,16 @@ class op_pre_callback(Callback):
 	#	|- For 'kal', self.pre_g will not be updated
 	def on_train_begin(self,logs={}):
 		G = self.info.get_value('G')
+		X = self.info.get_value('data')[-2]
+		y = self.info.get_value('label')[-2]
 		if G is None:
 			print('G is None')
-			self.pre_g = get_weight_grad(self.model,self.pre_x,self.pre_y)
+			self.pre_g = get_weight_grad(self.model,X,y)
 		else:
 			print('G is not None!!~')
 			self.pre_g = G
 
-		self.info.update_fisher(self.fisher(get_weight_grad(self.model,self.pre_x,self.pre_y)))
+		self.info.update_fisher(self.fisher(get_weight_grad(self.model,X[:512],y[:512])))
 		self.FISHER = self.info.get_value('fisher')
 		#self.pre_w = get_weights(self.model)
 
